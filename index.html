@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a1a0b">
+<title>Forest Observer — Field Collector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest-deep:   #0a1a0b;
+    --forest-dark:   #0f2410;
+    --forest-mid:    #163018;
+    --forest-panel:  rgba(15, 36, 16, 0.85);
+    --green-glow:    #22c55e;
+    --green-bright:  #4ade80;
+    --green-soft:    #86efac;
+    --cyan:          #22d3ee;
+    --amber:         #fbbf24;
+    --text-primary:  #e8f5e9;
+    --text-muted:    #6b9a70;
+    --border:        rgba(34, 197, 94, 0.18);
+    --glass:         rgba(15, 36, 16, 0.7);
+    --radius:        16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--forest-deep);
+    color: var(--text-primary);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated forest background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 80%, rgba(34,197,94,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 80% 20%, rgba(34,211,238,0.05) 0%, transparent 50%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(34,197,94,0.015) 2px,
+        rgba(34,197,94,0.015) 4px
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app-wrap {
+    position: relative; z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 40px;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--green-glow), var(--cyan));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 20px rgba(34,197,94,0.4);
+  }
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--green-soft);
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+  }
+  .logo-text strong {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+  }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    color: var(--green-bright);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    background: var(--green-glow);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+  }
+
+  /* ── GPS Banner ── */
+  .gps-banner {
+    margin: 20px 20px 0;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    backdrop-filter: blur(12px);
+  }
+  .gps-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .gps-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .gps-accuracy {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--amber);
+  }
+  .gps-coords {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.88rem;
+    color: var(--cyan);
+    min-height: 20px;
+  }
+  .gps-coords.loading {
+    color: var(--text-muted);
+    animation: blink 1.2s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .gps-coords.error { color: #f87171; }
+
+  .btn-gps {
+    margin-top: 10px;
+    width: 100%;
+    background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.3);
+    color: var(--cyan);
+    border-radius: 10px;
+    padding: 9px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-gps:hover, .btn-gps:active { background: rgba(34,211,238,0.2); }
+
+  /* ── Form Card ── */
+  .form-card {
+    margin: 14px 20px 0;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    backdrop-filter: blur(12px);
+  }
+  .form-section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .field-group { margin-bottom: 14px; }
+  .field-group:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--green-soft);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  input[type="text"], textarea {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: var(--green-glow);
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.12);
+  }
+  input::placeholder, textarea::placeholder {
+    color: rgba(107,154,112,0.5);
+  }
+  textarea {
+    resize: none;
+    min-height: 90px;
+    line-height: 1.55;
+  }
+
+  /* ── Photo Capture ── */
+  .photo-zone {
+    border: 2px dashed rgba(34,197,94,0.25);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    background: rgba(0,0,0,0.2);
+  }
+  .photo-zone:hover, .photo-zone.dragover {
+    border-color: var(--green-glow);
+    background: rgba(34,197,94,0.05);
+  }
+  .photo-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer;
+    width: 100%; height: 100%;
+  }
+  .photo-icon { font-size: 2rem; }
+  .photo-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .photo-label strong { color: var(--green-bright); }
+  .photo-preview {
+    width: 100%;
+    border-radius: 10px;
+    object-fit: cover;
+    max-height: 200px;
+    display: none;
+  }
+  .photo-preview.visible { display: block; }
+  .photo-clear {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(239,68,68,0.8);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    cursor: pointer;
+    display: none;
+  }
+  .photo-clear.visible { display: block; }
+
+  /* ── Submit Button ── */
+  .btn-submit {
+    margin: 14px 20px 0;
+    width: calc(100% - 40px);
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    border: none;
+    border-radius: var(--radius);
+    padding: 17px;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(22,163,74,0.35);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-submit:hover { background: linear-gradient(135deg, #15803d, #166534); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(22,163,74,0.45); }
+  .btn-submit:active { transform: translateY(0); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-submit.loading::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    animation: shimmer 1s infinite;
+  }
+  @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: rgba(22,163,74,0.95);
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 30px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    z-index: 999;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.error { background: rgba(220,38,38,0.95); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Observations History ── */
+  .history-header {
+    margin: 20px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .history-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .history-count {
+    background: rgba(34,197,94,0.15);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--green-bright);
+  }
+  .history-list {
+    margin: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .history-item {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 15px;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .history-item-top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .history-item-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--green-bright);
+  }
+  .history-item-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .history-item-msg {
+    font-size: 0.82rem;
+    color: rgba(232,245,233,0.7);
+    line-height: 1.45;
+    margin-bottom: 5px;
+  }
+  .history-item-coords {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--cyan);
+    opacity: 0.7;
+  }
+  .history-thumb {
+    width: 52px; height: 52px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 30px 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+  /* ── Export button ── */
+  .btn-export {
+    margin: 14px 20px 0;
+    width: calc(100% - 40px);
+    background: transparent;
+    border: 1px solid rgba(34,211,238,0.3);
+    border-radius: var(--radius);
+    padding: 13px;
+    color: var(--cyan);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-export:hover { background: rgba(34,211,238,0.08); }
+</style>
+</head>
+<body>
+<div class="app-wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <div class="logo-text">
+        <strong>FOREST OBSERVER</strong>
+        Field Collector v2
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      LIVE
+    </div>
+  </header>
+
+  <!-- GPS Banner -->
+  <div class="gps-banner">
+    <div class="gps-header">
+      <span class="gps-label">📡 GPS LOCATION</span>
+      <span class="gps-accuracy" id="gpsAccuracy"></span>
+    </div>
+    <div class="gps-coords loading" id="gpsCoords">Acquiring position…</div>
+    <button class="btn-gps" onclick="getGPS()">
+      <span>⟳</span> Refresh GPS
+    </button>
+  </div>
+
+  <!-- Observation Form -->
+  <div class="form-card">
+    <div class="form-section-title">📋 New Observation</div>
+
+    <div class="field-group">
+      <label>Observer Name</label>
+      <input type="text" id="nameInput" placeholder="Your name or callsign…" autocomplete="off">
+    </div>
+
+    <div class="field-group">
+      <label>Observation Notes</label>
+      <textarea id="messageInput" placeholder="Describe what you see — species, conditions, anomalies…"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label>Photo Evidence</label>
+      <div class="photo-zone" id="photoZone">
+        <input type="file" accept="image/*" capture="environment" id="photoInput" onchange="handlePhoto(this)">
+        <div class="photo-icon">📷</div>
+        <div class="photo-label"><strong>Tap to capture</strong> or choose photo</div>
+        <img class="photo-preview" id="photoPreview" alt="preview">
+        <button class="photo-clear" id="photoClear" onclick="clearPhoto(event)">✕ Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <button class="btn-submit" id="submitBtn" onclick="submitObservation()">
+    <span>📍</span> SUBMIT OBSERVATION
+  </button>
+
+  <!-- Export -->
+  <button class="btn-export" onclick="exportData()">
+    <span>↓</span> EXPORT ALL AS JSON
+  </button>
+
+  <!-- History -->
+  <div class="history-header">
+    <span class="history-title">📁 Submitted Observations</span>
+    <span class="history-count" id="historyCount">0</span>
+  </div>
+  <div class="history-list" id="historyList"></div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'forest_markers';
+const CHANNEL_NAME = 'forest_observer';
+let currentLat = null;
+let currentLng = null;
+let currentAccuracy = null;
+let photoBase64 = null;
+let bc = null;
+
+// ── BroadcastChannel ────────────────────────────────────────────────────────
+function initChannel() {
+  try {
+    bc = new BroadcastChannel(CHANNEL_NAME);
+  } catch(e) {
+    console.warn('BroadcastChannel not supported, falling back to storage events.');
+  }
+}
+
+function broadcast(msg) {
+  if (bc) {
+    try { bc.postMessage(msg); } catch(e) {}
+  }
+}
+
+// ── GPS ─────────────────────────────────────────────────────────────────────
+function getGPS() {
+  const el = document.getElementById('gpsCoords');
+  const acc = document.getElementById('gpsAccuracy');
+  el.textContent = 'Acquiring position…';
+  el.className = 'gps-coords loading';
+  acc.textContent = '';
+
+  if (!navigator.geolocation) {
+    el.textContent = 'GPS not supported on this device';
+    el.className = 'gps-coords error';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      currentLat = pos.coords.latitude;
+      currentLng = pos.coords.longitude;
+      currentAccuracy = Math.round(pos.coords.accuracy);
+      el.textContent = `${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
+      el.className = 'gps-coords';
+      acc.textContent = `±${currentAccuracy}m`;
+    },
+    (err) => {
+      el.className = 'gps-coords error';
+      if (err.code === 1) el.textContent = 'Permission denied — enable GPS';
+      else if (err.code === 2) el.textContent = 'Position unavailable';
+      else el.textContent = 'GPS timeout — try again';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+  );
+}
+
+// ── Photo ───────────────────────────────────────────────────────────────────
+function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    photoBase64 = e.target.result;
+    document.getElementById('photoPreview').src = photoBase64;
+    document.getElementById('photoPreview').classList.add('visible');
+    document.getElementById('photoClear').classList.add('visible');
+    // Hide the placeholder text when image is shown
+    document.querySelector('.photo-icon').style.display = 'none';
+    document.querySelector('.photo-label').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(e) {
+  e.stopPropagation();
+  photoBase64 = null;
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoPreview').classList.remove('visible');
+  document.getElementById('photoClear').classList.remove('visible');
+  document.querySelector('.photo-icon').style.display = '';
+  document.querySelector('.photo-label').style.display = '';
+}
+
+// ── localStorage helpers ────────────────────────────────────────────────────
+function loadMarkers() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function saveMarkers(markers) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(markers));
+  } catch(e) {
+    showToast('Storage full — try exporting and clearing data', true);
+  }
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ── Submit ───────────────────────────────────────────────────────────────────
+function submitObservation() {
+  const name = document.getElementById('nameInput').value.trim();
+  const message = document.getElementById('messageInput').value.trim();
+
+  if (!name) { showToast('Please enter your name', true); return; }
+  if (!message) { showToast('Please add observation notes', true); return; }
+  if (currentLat === null) { showToast('Waiting for GPS — tap Refresh GPS', true); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Submitting…';
+
+  const marker = {
+    id: genId(),
+    name,
+    lat: currentLat,
+    lng: currentLng,
+    accuracy: currentAccuracy,
+    message,
+    image: photoBase64,
+    timestamp: new Date().toISOString()
+  };
+
+  const markers = loadMarkers();
+  markers.unshift(marker);
+  saveMarkers(markers);
+
+  // Broadcast to dashboard
+  broadcast({ type: 'NEW_MARKER', marker });
+
+  // Reset form
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.innerHTML = '<span>📍</span> SUBMIT OBSERVATION';
+    document.getElementById('nameInput').value = '';
+    document.getElementById('messageInput').value = '';
+    clearPhoto({ stopPropagation: () => {} });
+    showToast('✓ Observation submitted!');
+    renderHistory();
+  }, 600);
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const markers = loadMarkers();
+  const list = document.getElementById('historyList');
+  const count = document.getElementById('historyCount');
+  count.textContent = markers.length;
+
+  if (markers.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🌱</div>No observations yet.<br>Submit your first field report above.</div>`;
+    return;
+  }
+
+  list.innerHTML = markers.map(m => {
+    const d = new Date(m.timestamp);
+    const timeStr = d.toLocaleDateString('en', { month:'short', day:'numeric' }) + ' ' +
+                    d.toLocaleTimeString('en', { hour:'2-digit', minute:'2-digit' });
+    return `
+      <div class="history-item">
+        <div class="history-item-top">
+          <div>
+            <div class="history-item-name">${escHtml(m.name)}</div>
+            <div class="history-item-msg">${escHtml(m.message)}</div>
+            <div class="history-item-coords">${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}</div>
+          </div>
+          ${m.image ? `<img class="history-thumb" src="${m.image}" alt="obs">` : ''}
+        </div>
+        <div class="history-item-time">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Export ───────────────────────────────────────────────────────────────────
+function exportData() {
+  const markers = loadMarkers();
+  if (markers.length === 0) { showToast('No data to export', true); return; }
+  // Export without image data for clean JSON
+  const exportData = markers.map(m => ({
+    id: m.id, name: m.name, lat: m.lat, lng: m.lng,
+    accuracy: m.accuracy, message: m.message,
+    hasImage: !!m.image,
+    timestamp: m.timestamp
+  }));
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `forest-observations-${Date.now()}.json`;
+  a.click();
+  showToast('✓ Exported ' + markers.length + ' observations');
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  requestAnimationFrame(() => { t.classList.add('show'); });
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+initChannel();
+getGPS();
+renderHistory();
+</script>
+</body>
+</html>
